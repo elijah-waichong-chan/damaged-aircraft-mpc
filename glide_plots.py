@@ -1,25 +1,22 @@
-# glide_plots.py
-
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D  # noqa: F401  # needed for 3D projection
+from mpl_toolkits.mplot3d import Axes3D
 
-
-def _runway_axis(runway_pos, runway_heading_deg):
+def _runway_axis(runway_heading_deg: float):
     """
-    Helper: return (x_rwy, y_rwy, heading_rad, dx, dy)
-    where (dx, dy) is the unit vector along runway heading.
+    Runway assumed at origin. Return:
+      - heading_rad: runway heading in radians
+      - dx, dy: unit vector along runway heading in (x, y) plane
     """
-    x_rwy, y_rwy, _ = runway_pos
     heading_rad = np.deg2rad(runway_heading_deg)
     dx = np.cos(heading_rad)
     dy = np.sin(heading_rad)
-    return x_rwy, y_rwy, heading_rad, dx, dy
+    return heading_rad, dx, dy
 
 
-def plot_3d_path(x, y, h, runway_pos, title="3D Glide Path"):
+def plot_3d_path(x, y, h, title="3D Glide Path"):
     """
-    Plot 3D path (x, y, h) with runway threshold marked,
+    Plot 3D path (x, y, h) with runway threshold at the origin,
     and equal scaling on all axes.
     """
     fig = plt.figure()
@@ -27,9 +24,9 @@ def plot_3d_path(x, y, h, runway_pos, title="3D Glide Path"):
 
     ax.plot(x, y, h, "-")
     ax.scatter(
-        [runway_pos[0]],
-        [runway_pos[1]],
-        [runway_pos[2]],
+        0.0,
+        0.0,
+        0.0,
         marker="x",
         s=80,
         label="Runway threshold",
@@ -63,75 +60,66 @@ def plot_3d_path(x, y, h, runway_pos, title="3D Glide Path"):
     return fig, ax
 
 
-def plot_ground_track_with_runway(
+def plot_ground_track(
     x,
     y,
-    runway_pos,
     runway_heading_deg,
     runway_length=2000.0,
     runway_width=150.0,
-    title="Ground Track",
+    title="Ground Track (Top-down View)",
 ):
     """
-    Plot 2D ground track (x, y), runway centerline, and a
-    rectangular runway area extending 'runway_length' behind
-    the threshold along runway heading.
+    Plot 2D ground track.
+
+    Convention:
+      - x: North
+      - y: East
+      - Plot shows East on x-axis, North on y-axis (standard map-like view).
+      - Runway starts at origin and extends along runway_heading_deg.
     """
     fig, ax = plt.subplots()
 
-    # Aircraft path
-    ax.plot(x, y, "-o", label="Flight Path")
+    # Aircraft path (East on x-axis, North on y-axis)
+    ax.plot(y, x, "-o", label="Flight Path")
 
-    # Runway threshold
-    x_rwy, y_rwy, heading_rad, dx, dy = _runway_axis(
-        runway_pos, runway_heading_deg
-    )
-    # ax.scatter([x_rwy], [y_rwy], c="r", label="Runway threshold")
-
-    # # Centerline: length based on path extent
-    # s_vals = (x - x_rwy) * dx + (y - y_rwy) * dy
-    # max_abs_s = np.max(np.abs(s_vals))
-    # if max_abs_s == 0:
-    #     max_abs_s = 1.0
-
-    # s_line = np.linspace(0.0, 1.2 * max_abs_s, 2)
-    # x_cl = x_rwy + s_line * dx
-    # y_cl = y_rwy + s_line * dy
-    # ax.plot(x_cl, y_cl, "--", label="Runway centerline")
+    # Runway axis
+    heading_rad, dx, dy = _runway_axis(runway_heading_deg)
 
     # Runway rectangle
     L = runway_length
     W = runway_width
 
     # Local runway coords: u along runway, v left
-    # Here we define runway from u = 0 (start) back to u = -L
+    # Runway from u = 0 (threshold at origin) to u = +L
     corners_local = np.array(
         [
-            [0.0,  -W / 2],
-            [-L,   -W / 2],
-            [-L,    W / 2],
-            [0.0,   W / 2],
+            [0.0, -W / 2],
+            [L,   -W / 2],
+            [L,    W / 2],
+            [0.0,  W / 2],
         ]
     )
     u = corners_local[:, 0]
     v = corners_local[:, 1]
 
-    # world = origin + u*[dx,dy] + v*[-dy, dx]
-    x_rw = x_rwy + u * dx - v * dy
-    y_rw = y_rwy + u * dy + v * dx
+    # world coords (runway at origin):
+    # x = u*dx - v*dy
+    # y = u*dy + v*dx
+    x_rw = u * dx - v * dy
+    y_rw = u * dy + v * dx
 
-    # Fill rectangle with orange
+    # Plot runway in same (East, North) frame as path
     ax.fill(
-        x_rw,
         y_rw,
+        x_rw,
         facecolor="orange",
         edgecolor="black",
         alpha=0.8,
-        label="Runway"
+        label="Runway",
     )
 
-    ax.set_xlabel("x [m]")
-    ax.set_ylabel("y [m]")
+    ax.set_xlabel("y (East) [m]")
+    ax.set_ylabel("x (North) [m]")
     ax.axis("equal")
     ax.set_title(title)
     ax.grid(True)
@@ -140,33 +128,54 @@ def plot_ground_track_with_runway(
     return fig, ax
 
 
-def plot_altitude_vs_runway_distance(
+def plot_altitude(
     x,
     y,
     h,
-    runway_pos,
     runway_heading_deg,
-    title="Altitude vs Runway Distance",
+    glide_angle_deg=3.0,
+    title="Altitude vs Distance From Runway",
 ):
     """
-    Plot altitude h versus along-runway distance s, where
-    s = 0 at the runway threshold and positive along runway heading.
-    """
-    x_rwy, y_rwy, heading_rad, dx, dy = _runway_axis(
-        runway_pos, runway_heading_deg
-    )
+    Plot altitude h versus absolute along-runway distance |s|, where:
+      - s is the coordinate along the runway axis through the origin
+      - |s| = 0 at the runway threshold
+      - |s| increases with distance away from the runway (either side)
 
-    # Along-runway distance from threshold
-    s = (x - x_rwy) * dx + (y - y_rwy) * dy
+    Also plots a reference glide slope line with given glide_angle_deg
+    starting at the runway (h = 0 at |s| = 0).
+    """
+    # Runway axis (runway at origin)
+    heading_rad, dx, dy = _runway_axis(runway_heading_deg)
+
+    # Signed along-runway coordinate
+    s_raw = x * dx + y * dy
+
+    # Absolute distance from runway along the runway axis
+    s_abs = np.abs(s_raw)
 
     fig, ax = plt.subplots()
-    ax.plot(s, h, "-o")
-    ax.set_xlabel("Runway axis distance s [m]")
+
+    # Aircraft altitude profile vs absolute distance
+    ax.plot(s_abs, h, "-o", label="Path")
+
+    # Reference glideslope from runway across full distance range
+    gamma = np.deg2rad(glide_angle_deg)
+    tan_gamma = np.tan(gamma)
+
+    s_max = max(s_abs.max(), 0.0)
+    s_gs = np.linspace(0.0, s_max, 200)
+    h_gs = s_gs * tan_gamma  # h = |s| * tan(gamma), starting at (0,0)
+
+    ax.plot(s_gs, h_gs, "--", label=f"{glide_angle_deg:.1f}° glideslope")
+
+    ax.set_xlabel("Absolute distance from runway |s| [m]")
     ax.set_ylabel("Altitude h [m]")
     ax.set_title(title)
     ax.grid(True)
+    ax.legend()
 
-    # Optional: put runway at s=0 on the right-hand side
-    # ax.invert_xaxis()
+    # Optional: runway at the right side of the plot
+    ax.invert_xaxis()
 
     return fig, ax
