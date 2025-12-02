@@ -2,23 +2,40 @@ import numpy as np
 from numpy import sin, cos
 
 class AircraftModel:
-    def __init__(self):
-
+    def __init__(self, pos_north, pos_east, altitude, vel, chi, gamma, dt = 0.05):
         # Initial Configuration
-        self.pos_north = 0.0        # North Position (m)
-        self.pos_east = 0.0         # East Position (m)
-        self.altitude = 5000.0      # Altitude (m)
-        self.vel = 300              # Airspeed (m/s)
-        self.chi = 0.0              # Heading angle(rad)
-        self.gamma = 0.0            # Flight path (climb) angle (rad)
+        self.pos_north = pos_north      # North Position (m)
+        self.pos_east = pos_east        # East Position (m)
+        self.altitude = altitude        # Altitude (m)
+        self.vel = vel                  # Airspeed (m/s)
+        self.chi = chi                  # Heading angle(rad)
+        self.gamma = gamma              # Flight path (climb) angle (rad)
+        self.dt = dt
 
-    def update_linearized_kinematics(self, dt):
+    def get_state_vector(self):
+        return np.array([
+            self.pos_north,
+            self.pos_east,
+            self.altitude,
+            self.vel,
+            self.chi,
+            self.gamma,
+        ])
+    
+    def update_from_vector(self, x):
+        self.pos_north, self.pos_east, self.altitude, \
+        self.vel, self.chi, self.gamma = x
+
+        self._update_linearized_kinematics()
+
+    def _update_linearized_kinematics(self):
         """ 
         Update the dynamics matricies using linearized kinematics model 
         """
         V = self.vel
         gamma = self.gamma
         chi = self.chi
+        dt = self.dt
 
         cgamma = cos(gamma)
         sgamma = sin(gamma)
