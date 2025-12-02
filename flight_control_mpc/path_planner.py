@@ -208,8 +208,8 @@ if __name__ == "__main__":
                                 pos_east=-5000,
                                 altitude=500.0,
                                 vel=50,
-                                chi=0.0,
-                                gamma=0.0)
+                                heading_deg=0.0,
+                                climb_angle_deg=0.0)
     
     planner = GlidePathPlanner(runway_heading_deg, N)
     waypoints = planner.solve_for_waypoints(aircraft)
