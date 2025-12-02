@@ -1,5 +1,6 @@
-# Damaged aircraft navigation path optimization MPC controller
-A small project exploring Model Predictive Control (MPC) for a damaged / actuator-impaired aircraft.
-The goal is to simulate a simple aircraft model, introduce a control-surface failure, and test how MPC reallocates control authority to guide the aircraft to landing.
+# Damaged Aircraft MPC Controller
+This project explores how Model Predictive Control (MPC) can be used to guide a dynamically impaired (damaged) aircraft to a safe landing.
 
-Developed as part of the final project of UC Berkeley MECENG 231A Model Predictive Control course in the department of Mechanical Engineering.
+The goal is to simulate a simple aircraft model, introduce time-varying dynamics degrade, and test how the use of a MPC controller can guide the aircraft to landing.
+
+This project was developed as the final course project for UC Berkeley MECENG 231A – Model Predictive Control, in the Department of Mechanical Engineering.
