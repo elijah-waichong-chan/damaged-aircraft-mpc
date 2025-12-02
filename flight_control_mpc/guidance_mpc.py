@@ -255,6 +255,11 @@ if __name__ == "__main__":
     north_pred = X_pred[0, :]   # N
     east_pred  = X_pred[1, :]   # E
     alt_pred   = X_pred[2, :]   # h
+    vel_pred   = X_pred[3, :]   # h
+    heading_pred   = np.rad2deg(X_pred[4, :])   # h
+    climb_angle_pred   = np.rad2deg(X_pred[5, :])   # h
+
+    print(heading_pred)
 
     # --- 3D predicted path (just over the horizon) ---
     plot_3d_path(north_pred, east_pred, alt_pred,
