@@ -24,18 +24,18 @@ The aircraft is modeled as a **point-mass kinematic system**:
 The aircraft is modeled as a **3D point-mass kinematic system** with six states:
 
 $$
-x = [\,x,\; y,\; h,\; V,\; \chi,\; \gamma\,]
+x = [\x,\ y,\ h,\ V,\ \chi,\ \gamma\]
 $$
 
 Where:
-| State     | Meaning                               | Units   |
+| State     | Meaning                                | Units   |
 |-----------|----------------------------------------|---------|
-| $\;x$     | North position in world frame          | meters  |
-| $\;y$     | East position in world frame           | meters  |
-| $h$       | Altitude (upwards positive)            | meters  |
+| $x$       | North position in world frame          | meters  |
+| $y$       | East position in world frame           | meters  |
+| $h$       | Altitude                               | meters  |
 | $V$       | Airspeed magnitude                     | m/s     |
 | $\chi$    | Heading angle (0° = North, 90° = East) | radians |
-| $\gamma$  | Climb angle (positive = climbing)      | radians |
+| $\gamma$  | Climb angle                            | radians |
 
 The kinematic equations of motion are:
 
