@@ -16,8 +16,8 @@ PLANNER_N = 50      # Number of waypoints in path planner
 # --------------------------------------------------------------
 # Environment and Airplane Initial Conditions
 # --------------------------------------------------------------
-RUNWAY_HEADING_DEG = 135                            # Runway heading in degrees
-AIRPLANE_START_POS = (5000.0, 5000.0, 500.0)        # (x, y, h) in meters
+RUNWAY_HEADING_DEG = 70                            # Runway heading in degrees
+AIRPLANE_START_POS = (3000.0, -5000.0, 500.0)        # (x, y, h) in meters
 AIRPLANE_START_VEL_KT = 100.0                       # initial speed (kt)
 AIRPLANE_START_HEADING_DEG = 0.0                    # initial heading (deg)
 
