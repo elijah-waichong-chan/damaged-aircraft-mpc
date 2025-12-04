@@ -72,13 +72,14 @@ This abstraction allows us to study **navigation** and **trajectory planning** w
 
 ## 🧭 Guidance Architecture
 ### Long-Horizon Planner
+- Fully **convex**
 - Optimization-based geometry only trajectory planner
 - Generates a smooth runway-aligned 3D trajectory
 - Horizon extends all the way to touchdown
 - Produces a full-descent reference path
-- Fully **convex** 
 
 ### Short-Horizon MPC
+- Fully **convex**
 - Linear time-varying (LTV) MPC
 - Tracks the planned path over a short window
 - Handles degraded control authority:
@@ -92,6 +93,3 @@ $$
 \dot{\chi},\quad
 \dot{\gamma}
 $$
-
-- Fully **convex**
-
