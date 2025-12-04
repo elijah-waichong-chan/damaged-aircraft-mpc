@@ -85,12 +85,13 @@ This abstraction allows us to study **navigation** and **trajectory planning** w
   - Limited acceleration
   - Limited turn rate
   - Limited climb/descent rate
-- Outputs:  
-$$
-  - \( \dot{V} \) — acceleration command  
-  - \( \dot{\chi} \) — heading-rate command  
-  - \( \dot{\gamma} \) — climb-angle-rate command  
-$$
-- Fully **convex** 
+- Outputs high-level rate commands:
 
+$$
+\dot{V},\quad
+\dot{\chi},\quad
+\dot{\gamma}
+$$
+
+- Fully **convex**
 
