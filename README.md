@@ -10,8 +10,7 @@ The central idea is to combine:
 
 to guide an impaired aircraft toward a safe landing runway, even when control authority is degraded.
 
-Developed as the final project for  
-**UC Berkeley MECENG 231A – Model Predictive Control**
+Developed as the final project for **UC Berkeley MECENG 231A – Model Predictive Control**
 
 ---
 
