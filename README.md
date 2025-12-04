@@ -20,21 +20,51 @@ This project focuses on **guidance**, not full flight dynamics.
 The aircraft is modeled as a **point-mass kinematic system**:
 
 ### Kinematic Model
-$$
-x = [x,\; y,\; h,\; V,\; \chi,\; \gamma]
-$$
+
+The aircraft is modeled as a **3D point-mass kinematic system** with six states:
 
 $$
-\dot{x} = V\cos\gamma\cos\chi,\quad
-\dot{y} = V\cos\gamma\sin\chi,\quad
+x = [\,x,\; y,\; h,\; V,\; \chi,\; \gamma\,]
+$$
+
+Where:
+
+| State | Meaning | Units |
+|-------|---------|--------|
+| \(x\) | North position in world frame | meters |
+| \(y\) | East position in world frame | meters |
+| \(h\) | Altitude (upwards positive) | meters |
+| \(V\) | Airspeed magnitude | m/s |
+| \(\chi\) | Heading angle (0° = North, 90° = East) | radians |
+| \(\gamma\) | Climb angle (positive = climbing) | radians |
+
+The kinematic equations of motion are:
+
+$$
+\dot{x} = V\cos\gamma\cos\chi,\qquad
+\dot{y} = V\cos\gamma\sin\chi,\qquad
 \dot{h} = V\sin\gamma
 $$
 
+The speed, heading, and climb angle evolve according to **high-level guidance inputs**:
+
 $$
-\dot{V} = u_T - g\sin\gamma,\quad
-\dot{\chi} = u_{\dot{\chi}},\quad
+\dot{V} = u_T - g\sin\gamma,
+\qquad
+\dot{\chi} = u_{\dot{\chi}},
+\qquad
 \dot{\gamma} = u_{\dot{\gamma}}
 $$
+
+Where:
+
+- \(u_T\) = commanded longitudinal acceleration  
+- \(u_{\dot{\chi}}\) = commanded heading rate  
+- \(u_{\dot{\gamma}}\) = commanded climb-angle rate  
+- \(g\) = gravitational acceleration (9.81 m/s²)
+
+These inputs are assumed to be tracked by an **ideal inner-loop autopilot**, allowing the MPC to operate purely at the guidance level.
+
 
 ### Linearization for MPC
 
@@ -60,10 +90,6 @@ This yields the linear prediction model used inside the MPC:
 $$
 x_{k+1} = A_d x_k + B_d u_k
 $$
-
-allowing convex optimization while still following the nonlinear glide path.
-
-The output of the MPC is interpreted as **high-level commands** to an onboard autopilot, which is assumed to follow these rates within specified limits.
 
 This simplification allows us to study **navigation** and **trajectory planning** without modeling aerodynamics, control surfaces, or aircraft attitude.
 
