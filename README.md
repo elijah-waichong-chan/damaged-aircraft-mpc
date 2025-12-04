@@ -1,5 +1,6 @@
 # Damaged Aircraft MPC Guidance Controller
 This project explores how **Model Predictive Control (MPC)** can provide **high-level guidance** to a **damaged aircraft** using only a **3D kinematic model**.  
+
 The controller outputs *guidance commands* (desired acceleration, turn rate, and climb-angle rate), which are assumed to be tracked by an **ideal lower-level autopilot**.
 
 The central idea is to combine:
@@ -19,25 +20,25 @@ Developed as the final project for
 This project focuses on **guidance**, not full flight dynamics.  
 The aircraft is modeled as a **point-mass kinematic system**:
 
-\[
+$$
 x = [x,\; y,\; h,\; V,\; \chi,\; \gamma]
-\]
+$$
 
-\[
+$$
 \dot{x} = V\cos\gamma\cos\chi,\quad
 \dot{y} = V\cos\gamma\sin\chi,\quad
 \dot{h} = V\sin\gamma
-\]
+$$
 
-\[
+$$
 \dot{V} = u_T - g\sin\gamma,\quad
 \dot{\chi} = u_{\dot{\chi}},\quad
 \dot{\gamma} = u_{\dot{\gamma}}
-\]
+$$
 
 The output of the MPC is interpreted as **high-level commands** to an onboard autopilot, which is assumed to follow these rates within specified limits.
 
-This abstraction allows us to study **trajectory feasibility**, **path tracking**, and **fault-tolerant guidance** without modeling aerodynamics, control surfaces, or aircraft attitude.
+This abstraction allows us to study **navigation** and **trajectory planning** without modeling aerodynamics, control surfaces, or aircraft attitude.
 
 ---
 
