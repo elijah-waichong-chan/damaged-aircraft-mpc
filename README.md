@@ -24,7 +24,7 @@ The aircraft is modeled as a **point-mass kinematic system**:
 The aircraft is modeled as a **3D point-mass kinematic system** with six states:
 
 $$
-x = [\x,\ y,\ h,\ V,\ \chi,\ \gamma\]
+x = [x,\ y,\ h,\ V,\ \chi,\ \gamma\]
 $$
 
 Where:
