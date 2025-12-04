@@ -1,6 +1,9 @@
 # Damaged Aircraft MPC Guidance Controller
 This project explores how **Model Predictive Control (MPC)** can provide **high-level guidance** to a **damaged aircraft** using only a **3D kinematic model**.  
 
+Developed as the final project for **UC Berkeley MECENG 231A – Model Predictive Control**
+
+## 🛫 Introduction
 The controller outputs *guidance commands* (desired acceleration, turn rate, and climb-angle rate), which are assumed to be tracked by an **ideal lower-level autopilot**.
 
 The central idea is to combine:
@@ -9,8 +12,6 @@ The central idea is to combine:
 - a **short-horizon receding-horizon MPC**
 
 to guide an impaired aircraft toward a safe landing runway, even when control authority is degraded.
-
-Developed as the final project for **UC Berkeley MECENG 231A – Model Predictive Control**
 
 ---
 
