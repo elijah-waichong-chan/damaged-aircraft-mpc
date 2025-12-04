@@ -8,13 +8,10 @@ import casadi as ca
 # Parameters
 # --------------------------------------------------------------
 
-MPC_DT = 0.05           # MPC time step (s)
-MPC_N = 20              # MPC prediction horizon steps
-
 # Cost weights
 Q_POS_N   = 10.0   # north tracking
 Q_POS_E   = 10.0   # east tracking
-Q_ALT     = 10.0   # altitude tracking
+Q_ALT     = 100.0   # altitude tracking
 
 Q_V       = 0.0    # speed tracking (0 -> free)
 Q_CHI     = 0.0    # heading tracking (0 -> free)
@@ -31,9 +28,9 @@ U_CHI_MAX    = np.deg2rad(5.0)
 U_GAMMA_MAX  = np.deg2rad(3.0)
 
 class GuidanceMPC:
-    def __init__(self ,path_planner: GlidePathPlanner):
-        self.N = MPC_N
-        self.dt = MPC_DT
+    def __init__(self ,path_planner: GlidePathPlanner, mpc_N, mpc_dt):
+        self.N = mpc_N
+        self.dt = mpc_dt
         self.path_planner = path_planner
 
         self._build_mpc_problem()
@@ -54,10 +51,11 @@ class GuidanceMPC:
         U = opti.variable(nu, N)       # u_0..u_{N-1}
 
         # Parameters (set at each solve)
-        x0_p   = opti.parameter(nx)          # current state
-        Ad_p   = opti.parameter(nx, nx)      # linearized A_d
-        Bd_p   = opti.parameter(nx, nu)      # linearized B_d
-        Xref_p = opti.parameter(nx, N + 1)   # reference trajectory
+        x0   = opti.parameter(nx)          # current absolute state
+        Ad   = opti.parameter(nx, nx)      # linearized A_d
+        Bd   = opti.parameter(nx, nu)      # linearized B_d
+        drift = opti.parameter(nx)         # affine drift f(x̄)*dt
+        Xref_rel = opti.parameter(nx, N + 1)   # reference in delta coords
 
         # State cost matrix
         Q = np.diag([
@@ -78,30 +76,31 @@ class GuidanceMPC:
         R_CA = ca.DM(R)
 
         # Initial condition
-        opti.subject_to(X[:, 0] == x0_p)
+        opti.subject_to(X[:, 0] == 0)  # δx_0 = 0
 
         J = 0
 
         for k in range(N):
             xk = X[:, k]
             uk = U[:, k]
-            xref_k = Xref_p[:, k]
+            Xref_rel_k = Xref_rel[:, k]
 
-            e = xk - xref_k
+            e = xk - Xref_rel_k
             J += ca.mtimes([e.T, Q_CA, e]) + ca.mtimes([uk.T, R_CA, uk])
 
-            # Dynamics: x_{k+1} = Ad x_k + Bd u_k
-            x_next = ca.mtimes(Ad_p, xk) + ca.mtimes(Bd_p, uk)
+            # Dynamics: δx_{k+1} = Ad δx_k + Bd δu_k + f̄*dt
+            x_next = ca.mtimes(Ad, xk) + ca.mtimes(Bd, uk) + drift
             opti.subject_to(X[:, k+1] == x_next)
 
         # Terminal cost
-        eN = X[:, N] - Xref_p[:, N]
+        eN = X[:, N] - Xref_rel[:, N]
         J += ca.mtimes([eN.T, Q_CA, eN])
 
         opti.minimize(J)
 
         # State constraints (example: speed bounds)
-        opti.subject_to(opti.bounded(V_MIN, X[3, :], V_MAX))  # v
+        v_abs = X[3, :] + x0[3]   # v̄ + δv
+        opti.subject_to(opti.bounded(V_MIN, v_abs, V_MAX))
 
         # Input constraints
         opti.subject_to(opti.bounded(-U_THRUST_MAX, U[0, :], U_THRUST_MAX))
@@ -115,10 +114,11 @@ class GuidanceMPC:
         self.opti   = opti
         self.X      = X
         self.U      = U
-        self.x0_p   = x0_p
-        self.Ad_p   = Ad_p
-        self.Bd_p   = Bd_p
-        self.Xref_p = Xref_p
+        self.x0     = x0
+        self.Ad     = Ad
+        self.Bd     = Bd
+        self.drift  = drift
+        self.Xref   = Xref_rel
 
     def _build_local_reference(self, aircraft: AircraftModel):
         """
@@ -130,7 +130,7 @@ class GuidanceMPC:
             waypoints with row 0 equal to current aircraft position.
         """
         # 1) Get waypoints from planner
-        waypoints = self.path_planner.solve_for_waypoints(aircraft)
+        waypoints = self.path_planner.solve_for_waypoints(aircraft, verbose=False)
         north_wp = waypoints[:, 0]
         east_wp  = waypoints[:, 1]
         alt_wp   = waypoints[:, 2]
@@ -167,7 +167,7 @@ class GuidanceMPC:
         chi_ref   = np.full(T, aircraft.chi)
         gamma_ref = np.full(T, aircraft.gamma)
 
-        Xref = np.vstack([
+        Xref_abs = np.vstack([
             north_ref,
             east_ref,
             alt_ref,
@@ -176,7 +176,7 @@ class GuidanceMPC:
             gamma_ref,
         ])  # shape (6, T)
 
-        return Xref
+        return Xref_abs, waypoints
 
     # ------------------------------------------------------------------
     # Solve MPC for current control input
@@ -191,19 +191,34 @@ class GuidanceMPC:
         Ad = aircraft.Ad.astype(float)
         Bd = aircraft.Bd.astype(float)
 
-        # 2) Build reference from waypoints
-        Xref = self._build_local_reference(aircraft).astype(float)
+        # 2) Current state and drift (f̄*dt) from the nonlinear model
+        x_bar = aircraft.get_state_vector().astype(float)
+        V = aircraft.vel
+        chi = aircraft.chi
+        gamma = aircraft.gamma
+        dt = aircraft.dt
 
-        # 3) Current state
-        x0 = aircraft.get_state_vector().astype(float)
+        drift = np.array([
+            V * np.cos(gamma) * np.cos(chi) * dt,
+            V * np.cos(gamma) * np.sin(chi) * dt,
+            V * np.sin(gamma) * dt,
+            0.0,
+            0.0,
+            0.0,
+        ])
 
         opti = self.opti
 
         # 4) Set parameter values (THIS is the important bit)
-        opti.set_value(self.x0_p,   x0)    # shape (6,)
-        opti.set_value(self.Ad_p,   Ad)    # shape (6,6)
-        opti.set_value(self.Bd_p,   Bd)    # shape (6,3)
-        opti.set_value(self.Xref_p, Xref)  # shape (6, N+1)
+        opti.set_value(self.x0,   x_bar)    # shape (6,)
+        opti.set_value(self.Ad,   Ad)    # shape (6,6)
+        opti.set_value(self.Bd,   Bd)    # shape (6,3)
+        opti.set_value(self.drift, drift)
+
+        Xref_abs, waypoints = self._build_local_reference(aircraft)
+        Xref_rel = Xref_abs - x_bar.reshape(-1, 1)      # (6, N+1)
+        opti.set_value(self.Xref, Xref_rel)
+
 
         # 5) (optional) warm start: keep previous solution as initial guess
         # opti.set_initial(self.U, opti.value(self.U))
@@ -217,55 +232,19 @@ class GuidanceMPC:
             raise
 
         # Optimized trajectories
-        X_opt = np.array(sol.value(self.X))  # shape (6, N+1)
         U_opt = np.array(sol.value(self.U))  # shape (3, N)
 
+        delta_X_opt = np.array(sol.value(self.X))  # (6, N+1)
+        X_abs_opt = delta_X_opt + x_bar.reshape(-1, 1)
+
+
         u0 = U_opt[:, 0]
+        x0 = X_abs_opt[:, 0]
 
         print(
             "[GuidanceMPC] ✅ MPC solved. u0 = "
             f"[thrust={u0[0]:.3f}, chi_dot={u0[1]:.3f}, gamma_dot={u0[2]:.3f}]"
+            f"[x={x0[0]:.3f}, y={x0[1]:.3f}, h={x0[2]:.3f}]"
         )
 
-        return u0, X_opt, U_opt
-
-    
-
-if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-    from glide_plots import (
-        plot_3d_path,
-        plot_ground_track,
-        plot_altitude,
-    )
-    aircraft = AircraftModel(pos_north=3000.0,
-                                pos_east=-5000,
-                                altitude=500.0,
-                                vel=50,
-                                heading_deg=180.0,
-                                climb_angle_deg=0.0,
-                                dt=MPC_DT)
-    planner = GlidePathPlanner(runway_heading_deg=90, N=100)
-    guidance_mpc = GuidanceMPC(planner)
-
-    # Get control + predicted trajectory
-    u0, X_pred, U_pred = guidance_mpc.solve_for_control_input(aircraft)
-
-    # Extract predicted states over the horizon
-    north_pred = X_pred[0, :]   # N
-    east_pred  = X_pred[1, :]   # E
-    alt_pred   = X_pred[2, :]   # h
-    vel_pred   = X_pred[3, :]   # h
-    heading_pred   = np.rad2deg(X_pred[4, :])   # h
-    climb_angle_pred   = np.rad2deg(X_pred[5, :])   # h
-
-    print(heading_pred)
-
-    # --- 3D predicted path (just over the horizon) ---
-    plot_3d_path(north_pred, east_pred, alt_pred,
-                 title="Predicted 3D trajectory (MPC horizon)")
-    
-    plt.show()
-
-
-
+        return u0, X_abs_opt, U_opt, waypoints
