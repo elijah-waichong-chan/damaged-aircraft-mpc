@@ -7,13 +7,12 @@ from aircraft_model import AircraftModel
 # --------------------------------------------------------------
 # Path Planner Cost Weights
 # --------------------------------------------------------------
-WEIGHT_SMOOTH = 10.0                # weight for path smoothness 
+WEIGHT_SMOOTH = 50.0                # weight for path smoothness 
 WEIGHT_HEIGHT_SMOOTH = 10.0         # weight for altitude smoothness
 WEIGHT_LENGTH = 1.0                 # weight for path length
-WEIGHT_GS = 100.0                    # weight for glideslope altitude error
+WEIGHT_GS = 50.0                    # weight for glideslope altitude error
 WEIGHT_LAT = 10.0                   # weight for lateral (cross-track) error
 
-K_INIT = 10                         # number of segments to gently align with initial heading
 INIT_ALIGN_WEIGHT = 10.0           # weight for initial heading alignment
 FINAL_ALIGN_WEIGHT = 10.0          # weight for final runway heading alignment
 
@@ -25,7 +24,8 @@ GLIDE_ANGLE_DEG = 3.0   # target glide slope angle (deg)
 ROLLOUT_DIST = 800.0   # [m] along runway centerline after threshold
 N_ROLLOUT    = 20      # number of extra points along runway centerline
 
-D_ALIGN = 2000.0  # [m] length of desired straight-in segment
+D_INIT_ALIGN = 500.0       # [m] length of initial alignment segment
+D_FINAL_ALIGN = 2000.0  # [m] length of desired straight-in segment
 
 
 class GlidePathPlanner:
@@ -77,6 +77,7 @@ class GlidePathPlanner:
         chi0 = aircraft.chi                 # radians
         hx = np.cos(chi0)                   # heading x (north)
         hy = np.sin(chi0)                   # heading y (east)
+        print(hx, hy)
         # Runway assumed at origin without loss of generality
         x_end, y_end, h_end = 0.0, 0.0, 0.0
 
@@ -124,29 +125,6 @@ class GlidePathPlanner:
                     id1 = 3 * (i + 1) + d
                     diff = z[id1] - z[id0]
                     J += WEIGHT_LENGTH * diff**2
-
-        # Align first initial segments with initial heading
-        for i in range(0, min(K_INIT, N)):
-            x_i   = z[idx_x(i)]
-            x_ip1 = z[idx_x(i + 1)]
-            y_i   = z[idx_y(i)]
-            y_ip1 = z[idx_y(i + 1)]
-
-            seg_dx = x_ip1 - x_i
-            seg_dy = y_ip1 - y_i
-
-            # Cross product with initial heading: zero means parallel
-            cross_h = seg_dx * hy - seg_dy * hx
-
-            # Weight that can decay over these first K segments (optional)
-            w_init = (1.0 - i / max(1, K_INIT))**2
-
-            # Soft penalty to make early segments parallel to initial heading
-            J += w_init * INIT_ALIGN_WEIGHT * cross_h**2
-
-            # Optional: enforce "forward" along initial heading so it doesn't go backwards
-            opti.subject_to(seg_dx * hx + seg_dy * hy >= 0)
-
 
         # Glideslope + centerline tracking
         dx = np.cos(self.runway_heading_rad)
@@ -196,13 +174,46 @@ class GlidePathPlanner:
         opti.subject_to(z[idx_y(N)] == y_end)
         opti.subject_to(z[idx_h(N)] == h_end)
 
+        # Align first initial segments with initial heading
+        D0 = np.hypot(x0, y0)   # distance from start to runway (same as below)
+
+        if D0 > 1e-3:
+            # We want the first D_INIT_ALIGN meters to roughly follow the initial heading
+            s_init_end = min(D_INIT_ALIGN, D0)
+            # Fraction of the whole path this corresponds to
+            frac_init = s_init_end / D0
+            i_init_end = int(np.floor(frac_init * N))
+
+            for i in range(0, max(1, i_init_end)):
+                x_i   = z[idx_x(i)]
+                x_ip1 = z[idx_x(i + 1)]
+                y_i   = z[idx_y(i)]
+                y_ip1 = z[idx_y(i + 1)]
+
+                seg_dx = x_ip1 - x_i
+                seg_dy = y_ip1 - y_i
+
+                # Parallel to initial heading: cross = 0
+                cross_h = seg_dx * hy - seg_dy * hx
+
+                # Weight that decays as we leave the initial segment
+                # (strong near i=0, weaker near i_init_end)
+                w_init = (1.0 - i / max(1, i_init_end))**2
+
+                # Soft penalty to make early segments parallel to initial heading
+                J += w_init * INIT_ALIGN_WEIGHT * cross_h**2
+
+                # Optional: enforce "forward" along initial heading
+                opti.subject_to(seg_dx * hx + seg_dy * hy >= 0)
+
+
         # Final-alignment with runway heading
         # Horizontal distance from start to runway at origin
         D0 = np.hypot(x0, y0)
 
         if D0 > 1e-3:
             # Fraction of the path where we start alignment
-            s_align_start = max(0.0, (D0 - D_ALIGN) / D0)
+            s_align_start = max(0.0, (D0 - D_FINAL_ALIGN) / D0)
             i_align_start = int(np.floor(s_align_start * N))
 
             for i in range(i_align_start, N):
@@ -259,7 +270,7 @@ if __name__ == "__main__":
                                 pos_east=5600,
                                 altitude=1000.0,
                                 vel_kt=100,
-                                heading_deg=30.0,
+                                heading_deg=90.0,
                                 climb_angle_deg=0.0,)
     
     planner = GlidePathPlanner(RUNWAY_HEADING_DEG, N)
@@ -277,7 +288,7 @@ if __name__ == "__main__":
         x,
         y,
         RUNWAY_HEADING_DEG,
-        heading_deg = 0.0,
+        heading_deg = 90.0,
     )
 
     # Plot altitude

@@ -6,14 +6,13 @@ import casadi as ca
 # --------------------------------------------------------------
 # MPC Cost Weights
 # --------------------------------------------------------------
-Q_POS_N   = 100.0   # north tracking
-Q_POS_E   = 100.0   # east tracking
-Q_ALT     = 100.0   # altitude tracking
-Q_V       = 10.0    # speed tracking
+Q_POS_N   = 10.0    # north tracking
+Q_POS_E   = 10.0    # east tracking
+Q_ALT     = 10.0    # altitude tracking
+Q_V       = 1.0    # speed tracking
 
 Q_CHI     = 0.0     # heading tracking (free)
 Q_GAMMA   = 0.0     # flight path angle tracking (free)
-
 
 R_THRUST  = 0.1     # thrust/braking effort
 R_CHI_DOT = 0.1     # heading rate effort
@@ -110,6 +109,7 @@ class GuidanceMPC:
         nx = 6
         nu = 3
 
+        # opti = ca.Opti("conic")
         opti = ca.Opti()
 
         # Extract Aircraft Model parameters
@@ -164,8 +164,8 @@ class GuidanceMPC:
         v_abs = X[3, :] + x0[3]                                 # absolute airspeed
         opti.subject_to(opti.bounded(V_MIN, v_abs, V_MAX))      # airspeed limits
 
-        # Input constraints
-        opti.subject_to(opti.bounded(-U_BRAKE_MAX, U[0, :], U_ACCEL_MAX))       # Thrust/braking limits
+        # # Input constraints
+        opti.subject_to(opti.bounded(-U_BRAKE_MAX,  U[0, :], U_ACCEL_MAX))      # Thrust/braking limits
         opti.subject_to(opti.bounded(-U_CHI_MAX,    U[1, :], U_CHI_MAX))        # Heading rate limits
         opti.subject_to(opti.bounded(-U_GAMMA_MAX,  U[2, :], U_GAMMA_MAX))      # Climb angle rate limits
 
@@ -192,6 +192,19 @@ class GuidanceMPC:
         # Solver options
         # --------------------------------------------------------------
         opti.solver("ipopt", {"print_time": False}, {"print_level": 0})
+
+        # opts = {
+        #     "osqp": {
+        #         "verbose": False,
+        #         "polish": True,
+        #         "max_iter": 10000,
+        #         "eps_abs": 1e-4,
+        #         "eps_rel": 1e-4,
+        #     },
+        #     "error_on_fail": False
+        # }
+
+        # opti.solver("osqp", opts)
 
         # Store handles
         self.opti   = opti
