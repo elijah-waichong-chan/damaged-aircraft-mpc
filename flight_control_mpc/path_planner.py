@@ -8,7 +8,7 @@ from aircraft_model import AircraftModel
 WEIGHT_SMOOTH = 50.0                 # smoothness for x,y
 WEIGHT_GS = 10.0                     # glideslope altitude error
 WEIGHT_LAT = 1.0                     # lateral (cross-track) error
-RW_ALIGN_WEIGHT = 10.0            # final runway heading alignment
+RW_ALIGN_WEIGHT = 1.0            # final runway heading alignment
 
 # --------------------------------------------------------------
 # Parameters
