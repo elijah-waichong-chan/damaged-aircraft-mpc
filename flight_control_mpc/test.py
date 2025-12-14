@@ -17,10 +17,10 @@ PLANNER_N  = 100      # Number of waypoints in the global planner polyline
 # --------------------------------------------------------------
 # Environment and Airplane Initial Conditions
 # --------------------------------------------------------------
-RUNWAY_HEADING_DEG          = 90                            # runway heading (deg)
-AIRPLANE_START_POS          = (-2000.0, -4000.0, 500.0)   # (N, E, h) in meters
+RUNWAY_HEADING_DEG          = 45                            # runway heading (deg)
+AIRPLANE_START_POS          = (-4000.0, -2000.0, 150.0)   # (N, E, h) in meters
 AIRPLANE_START_VEL_KT       = 80.0                          # initial speed (kt)
-AIRPLANE_START_HEADING_DEG  = 170.0                           # initial heading (deg)
+AIRPLANE_START_HEADING_DEG  = 0                           # initial heading (deg)
 
 # --------------------------------------------------------------
 # End of settings
@@ -79,59 +79,92 @@ sim_step = 0
 replan = True
 cached_waypoints = None
 
-# Run until we reach (approximately) ground level
+replan_flags = []          # one bool per MPC step
+replan_times = []          # timestamps (seconds)
+replan_counts = 0
+t_step = 0                # 1 step = 1 second if mpc_dt=1
+
+# Initialize logs
+x_sim_m = [float(aircraft.pos_north)]
+y_sim_m = [float(aircraft.pos_east)]
+h_sim_m = [float(aircraft.altitude)]
+vel_sim_ms = [float(aircraft.vel_ms)]
+heading_sim_deg = [float(np.rad2deg(aircraft.chi))]
+climb_angle_sim_deg = [float(np.rad2deg(aircraft.gamma))]
+
+u_thrust_mpc_m_s2 = []
+u_heading_rate_mpc_deg_s = []
+u_climb_rate_mpc_deg_s = []
+
+x_planned, y_planned, h_planned = [], [], []
+x_mpc, y_mpc, h_mpc = [], [], []
+
+# Run until we reach ground level
 while h_sim_m[-1] > 0.1:
 
-    # 1) Build flight path reference for MPC (if needed)
+    # 1) Build flight path reference for MPC (replan only when requested)
     if replan or cached_waypoints is None:
         Xref_abs, cached_waypoints = guidance_mpc.build_local_reference(
             aircraft, waypoints=None
         )
-        replan = False
         guidance_mpc.reset_replan_memory()
+        replan_counts =+ 1
+        replan = False
     else:
         Xref_abs, _ = guidance_mpc.build_local_reference(
             aircraft, waypoints=cached_waypoints
         )
-
-    # 2) Solve MPC for control input
-    try:
-        state_vector = aircraft.get_state_vector()
-        u0, X_pred, U_pred, _, replan = guidance_mpc.solve_for_control_input(aircraft, cached_waypoints, Xref_abs)
-
-    except RuntimeError as e:
-        print("MPC failed")
-        break
-
-    # 3) Log applied control inputs
-    u_thrust_mpc_m_s2.append(u0[0])
-    u_heading_rate_mpc_deg_s.append(np.rad2deg(u0[1]))
-    u_climb_rate_mpc_deg_s.append(np.rad2deg(u0[2]))
-
-    # 4) Log the current global plan (for visualization)
-    x_planned.append(cached_waypoints[:, 0])
-    y_planned.append(cached_waypoints[:, 1])
-    h_planned.append(cached_waypoints[:, 2])
-
-    # 5) Log MPC predicted horizon trajectory (for visualization)
-    x_mpc.append(X_pred[0, :])  # north
-    y_mpc.append(X_pred[1, :])  # east
-    h_mpc.append(X_pred[2, :])  # altitude
-
-    # 6) Advance simulation by one step
-    x_next = X_pred[:, 1]  # next state in the predicted trajectory
-
-    x_sim_m.append(x_next[0])
-    y_sim_m.append(x_next[1])
-    h_sim_m.append(x_next[2])
-    vel_sim_ms.append(x_next[3])
-    heading_sim_deg.append(np.rad2deg(x_next[4]))
-    climb_angle_sim_deg.append(np.rad2deg(x_next[5]))
+    
+    # 2a) If replanned count exceed 20 times, deemed infeasible to land
+    if replan_counts >= 20:
+        print("Infeasible to reach airport.")
+    else:
+        # PUT CRASH LANDING HERE
+        # MAYBE A MODIFIED GUIDANCE MPC, U CAN CREATE A SECOND INSTANCE OF THE guidance_mpc by 
+        # crash_mpc = GuidanceMPC(planner, aircraft, MPC_N, MPC_DT)
+        # THEN U CAN SET DIFFERENT CONSTRAINTS AND BEHAVIORS
 
 
-    # Apply the control input and update aircraft state
+    # 2b) Else, solve nominal MPC for control input
+        try:
+            u0, X_pred, U_pred, _, replan = guidance_mpc.solve_for_control_input(
+                aircraft, cached_waypoints, Xref_abs
+            )
+        except RuntimeError:
+            print("MPC failed")
+            break
+
+    # 3) Log replan flag (this step)
+    replan_flags.append(bool(replan))
+    replan_times.append(t_step)
+    t_step += 1
+
+    # 4) Log applied control inputs
+    u_thrust_mpc_m_s2.append(float(u0[0]))
+    u_heading_rate_mpc_deg_s.append(float(np.rad2deg(u0[1])))
+    u_climb_rate_mpc_deg_s.append(float(np.rad2deg(u0[2])))
+
+    # 5) Log the current global plan (for visualization)
+    x_planned.append(np.asarray(cached_waypoints[:, 0], dtype=float).copy())
+    y_planned.append(np.asarray(cached_waypoints[:, 1], dtype=float).copy())
+    h_planned.append(np.asarray(cached_waypoints[:, 2], dtype=float).copy())
+
+    # 6) Log MPC predicted horizon trajectory (for visualization)
+    x_mpc.append(np.asarray(X_pred[0, :], dtype=float).copy())  # north
+    y_mpc.append(np.asarray(X_pred[1, :], dtype=float).copy())  # east
+    h_mpc.append(np.asarray(X_pred[2, :], dtype=float).copy())  # altitude
+
+    # 7) Advance TRUE simulation by one step
     aircraft.step(u0)
     sim_step += 1
+
+    # 8) Log TRUE simulated state from aircraft (NOT from X_pred)
+    x_sim_m.append(float(aircraft.pos_north))
+    y_sim_m.append(float(aircraft.pos_east))
+    h_sim_m.append(float(aircraft.altitude))
+    vel_sim_ms.append(float(aircraft.vel_ms))
+    heading_sim_deg.append(float(np.rad2deg(aircraft.chi)))
+    climb_angle_sim_deg.append(float(np.rad2deg(aircraft.gamma)))
 
 
 # --------------------------------------------------------------
@@ -147,7 +180,9 @@ plot_report_figures(
     glide_angle_deg=3.0,
     runway_length_m=2000.0,
     input_limits=None,
-    mpc_dt = MPC_DT
+    mpc_dt = MPC_DT,
+    replan_flags=replan_flags,
+    replan_times=replan_times,   # optional; you can omit this
 )
 
 # --------------------------------------------------------------
