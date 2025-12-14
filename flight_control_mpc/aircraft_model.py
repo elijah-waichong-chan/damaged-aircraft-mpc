@@ -9,6 +9,7 @@ APPROACH_SPEED_KT = 80            # approach speed (kt)
 STALL_SPEED_KT = 50.0             # stall speed (kt)
 NEVER_EXCEED_SPEED_KT = 150.0     # never exceed speed (kt)
 
+
 class AircraftModel:
     def __init__(self, pos_north, pos_east, altitude, vel_kt, heading_deg, climb_angle_deg, dt = 0.05):
         # Initial Configuration
@@ -62,7 +63,7 @@ class AircraftModel:
             [0.0, 0.0, 0.0,  cgamma * cchi,  -V * cgamma * schi,  -V * sgamma * cchi],
             [0.0, 0.0, 0.0,  cgamma * schi,   V * cgamma * cchi,  -V * sgamma * schi],
             [0.0, 0.0, 0.0,  sgamma,          0.0,                 V * cgamma],
-            [0.0, 0.0, 0.0,  0.0,             0.0,                -9.81 * cgamma],
+            [0.0, 0.0, 0.0,  0.0,             0.0,                 0.0],
             [0.0, 0.0, 0.0,  0.0,             0.0,                 0.0],
             [0.0, 0.0, 0.0,  0.0,             0.0,                 0.0],
         ])
@@ -79,3 +80,18 @@ class AircraftModel:
         # Discretize using Euler forward method
         self.Ad = np.eye(6) + Ac * dt
         self.Bd = Bc * dt
+
+    def step(self, u):
+        u_accel, u_chidot, u_gammadot = u
+        dt = self.dt
+
+        # nonlinear kinematics step
+        self.pos_north += self.vel_ms * np.cos(self.gamma) * np.cos(self.chi) * dt
+        self.pos_east  += self.vel_ms * np.cos(self.gamma) * np.sin(self.chi) * dt
+        self.altitude  += self.vel_ms * np.sin(self.gamma) * dt
+
+        self.vel_ms += u_accel * dt
+        self.chi    += u_chidot * dt
+        self.gamma  += u_gammadot * dt
+
+        self._update_linearized_kinematics()
