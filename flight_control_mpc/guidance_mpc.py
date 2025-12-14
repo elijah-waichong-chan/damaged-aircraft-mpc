@@ -10,8 +10,8 @@ Q_POS_N   = 10.0    # north tracking
 Q_POS_E   = 10.0    # east tracking
 Q_ALT     = 50.0    # altitude tracking
 Q_V       = 10.0    # airspeed tracking
-Q_CHI     = 10       # heading tracking
-Q_GAMMA   = 10       # flight path angle tracking
+Q_CHI     = 1       # heading tracking
+Q_GAMMA   = 1       # flight path angle tracking
 
 R_THRUST  = 0.1     # thrust/braking effort
 R_CHI_DOT = 0.1     # heading rate effort
