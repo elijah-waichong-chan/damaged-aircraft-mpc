@@ -407,7 +407,9 @@ def plot_report_figures(
     glide_angle_deg=3.0,
     runway_length_m=2000.0,
     input_limits=None,
-    mpc_dt=1.0
+    mpc_dt=1.0,
+    replan_flags=None,        # NEW
+    replan_times=None,        # NEW (optional)
 ):
     import os
     os.makedirs(out_dir, exist_ok=True)
@@ -447,6 +449,20 @@ def plot_report_figures(
 
     t = np.arange(len(uT), dtype=float) * float(mpc_dt)  # inputs exist for each MPC step
 
+    # --------------------------
+    # NEW: replanning timestamps
+    # --------------------------
+    t_replan = np.array([], dtype=float)
+    if replan_flags is not None:
+        rf = np.asarray(replan_flags, dtype=bool)
+        if replan_times is not None:
+            tt = np.asarray(replan_times, dtype=float)
+            t_replan = tt[rf]
+        else:
+            # assume one flag per MPC step aligned with inputs
+            idx = np.where(rf)[0]
+            t_replan = idx.astype(float) * float(mpc_dt)
+
     # Use the last planned path for a clean reference overlay
     x_ref = np.asarray(x_planned[-1], dtype=float)
     y_ref = np.asarray(y_planned[-1], dtype=float)
@@ -460,7 +476,7 @@ def plot_report_figures(
     runway_y = np.array([0.0, L * s])
 
     # ---- Figure 1: Ground track (top-down) ----
-    plt.figure(figsize=(9, 6))
+    plt.figure(figsize=(9, 4))
     plt.plot(x_sim, y_sim, label="Simulated trajectory")
     plt.plot(x_ref, y_ref, "--", label="Planned reference (final solve)")
     plt.plot(runway_x, runway_y, label="Runway axis")
@@ -485,11 +501,11 @@ def plot_report_figures(
     gs = np.tan(np.deg2rad(glide_angle_deg))
     h_gs = gs * s_abs
 
-    plt.figure(figsize=(9, 6))
+    plt.figure(figsize=(9, 4))
     plt.plot(s_abs, h_sim, label="Simulated altitude")
     plt.plot(s_abs, h_gs, "--", label=f"{glide_angle_deg:.1f} deg glideslope")
-    plt.xlabel("|Along-runway distance| |s| (m)")
-    plt.ylabel("Altitude h (m)")
+    plt.xlabel("Along-runway distance (m)")
+    plt.ylabel("Altitude (m)")
     plt.title("Altitude vs Distance from Runway")
     plt.grid(True)
     plt.legend(frameon=True)
@@ -497,19 +513,35 @@ def plot_report_figures(
     plt.savefig(os.path.join(out_dir, "02_altitude_vs_distance.png"), dpi=300)
 
     # ---- Figure 3: Cross-track error vs time ----
-    plt.figure(figsize=(9, 6))
-    plt.plot(np.arange(len(s_sim), dtype=float) * float(mpc_dt), d_sim, label="Cross-track d (m)")
+    t_xtk = np.arange(len(s_sim), dtype=float) * float(mpc_dt)
+
+    plt.figure(figsize=(9, 4))
+    plt.plot(t_xtk, d_sim, label="Cross-track Distance (m)")
     plt.xlabel("Time (s)")
-    plt.ylabel("Cross-track error d (m)")
+    plt.ylabel("Cross-track distance (m)")
     plt.title("Cross-Track Error vs Time")
     plt.grid(True)
+
+    # NEW: star markers at replanning instants (on the curve)
+    if t_replan.size > 0:
+        # For each replan time, sample d(t) by interpolation so stars sit on the line
+        d_replan = np.interp(t_replan, t_xtk, d_sim)
+
+        plt.plot(
+            t_replan, d_replan,
+            linestyle="None",
+            marker="*",
+            markersize=14,
+            label=f"Replan events (N={len(t_replan)})"
+        )
+
     plt.legend(frameon=True)
     plt.tight_layout()
     plt.savefig(os.path.join(out_dir, "03_cross_track_vs_time.png"), dpi=300)
 
     # ---- Figure 4: States vs time ----
     t_state = np.arange(len(x_sim), dtype=float) * float(mpc_dt)
-    plt.figure(figsize=(9, 6))
+    plt.figure(figsize=(9, 4))
     plt.plot(t_state, V_sim, label="Airspeed V (m/s)")
     plt.plot(t_state, chi_sim, label="Heading χ (deg)")
     plt.plot(t_state, gam_sim, label="Flight-path γ (deg)")
@@ -521,10 +553,10 @@ def plot_report_figures(
     plt.savefig(os.path.join(out_dir, "04_states_vs_time.png"), dpi=300)
 
     # ---- Figure 5: Inputs vs time ----
-    plt.figure(figsize=(9, 6))
-    plt.plot(t, uT, label="uT (m/s²)")
-    plt.plot(t, uChi, label="χ̇ command (deg/s)")
-    plt.plot(t, uGam, label="γ̇ command (deg/s)")
+    plt.figure(figsize=(9, 4))
+    plt.plot(t, uT, label="Acceleration Command (m/s²)")
+    plt.plot(t, uChi, label="Heading rate command (deg/s)")
+    plt.plot(t, uGam, label="Climb rate command (deg/s)")
     plt.xlabel("Time (s)")
     plt.title("MPC Guidance Inputs vs Time")
     plt.grid(True)
