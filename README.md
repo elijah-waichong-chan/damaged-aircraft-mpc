@@ -99,40 +99,47 @@ $$
 Produces a waypoint sequence $(x_i, y_i, h_i)$ from current aircraft position to the runway threshold.
 
 The planner solves a convex QP over the stacked waypoint decision vector:
+
 $$
-z = [x_0,\ y_0,\ h_0,\ \ldots,\ x_N,\ y_N,\ h_N]^T.
+z = [x_0,\ y_0,\ h_0,\ \ldots,\ x_N,\ y_N,\ h_N]^T
 $$
 
-Define $\mathbf{p}_i = [x_i,\ y_i,\ h_i]^T$. The objective is composed of four geometric terms:
+Define $p_i = [x_i,\ y_i,\ h_i]^T$. The objective is composed of four geometric terms:
+
 $$
-J = J_{\text{smooth}} + J_{\text{gs}} + J_{\text{lat}} + J_{\text{align}}.
+J = J_{\mathrm{smooth}} + J_{\mathrm{gs}} + J_{\mathrm{lat}} + J_{\mathrm{align}}
 $$
 
 **Smoothness (second finite differences):**
+
 $$
-J_{\text{smooth}} = w_{\text{smooth}} \sum_{i=1}^{N-1} \left\| \mathbf{p}_{i+1} - 2\mathbf{p}_i + \mathbf{p}_{i-1} \right\|_2^2.
+J_{\mathrm{smooth}} = w_{\mathrm{smooth}} \sum_{i=1}^{N-1} \left\| p_{i+1} - 2p_i + p_{i-1} \right\|_2^2
 $$
 
 **Glide-slope shaping (altitude tracking to a glide reference):**
+
 $$
-J_{\text{gs}} = W_{\text{GS}} \sum_{i=0}^{N} w_i\,(h_i - h_{\text{ref},i})^2.
+J_{\mathrm{gs}} = W_{\mathrm{GS}} \sum_{i=0}^{N} w_i\,(h_i - h_{\mathrm{ref},i})^2
 $$
 
 **Runway centerline shaping (cross-track penalty):**
+
 $$
-J_{\text{lat}} = W_{\text{LAT}} \sum_{i=0}^{N} w_i\,c_i^2.
+J_{\mathrm{lat}} = W_{\mathrm{LAT}} \sum_{i=0}^{N} w_i\,c_i^2
 $$
 
-**Terminal runway heading alignment (penalize heading misalignment near runway):**
+**Terminal runway heading alignment (penalize heading misalignment near runway):**  
 Let $(d_x, d_y)$ be the runway unit direction in the world frame. Over the terminal segment:
+
 $$
-J_{\text{align}} = W_{\text{align}} \sum_{i=i_{\text{align}}}^{N-1} w_i\left( (x_{i+1}-x_i)d_y - (y_{i+1}-y_i)d_x \right)^2.
+J_{\mathrm{align}} = W_{\mathrm{align}} \sum_{i=i_{\mathrm{align}}}^{N-1} w_i\left( (x_{i+1}-x_i)d_y - (y_{i+1}-y_i)d_x \right)^2
 $$
 
 In implementation, the waypoint weights $w_i$ are increased as the trajectory approaches the runway (e.g., $w_i=(i/N)^2$), emphasizing glide-slope and centerline tracking near touchdown.
 
 **Replanning policy:** the planner is called only when the short-horizon MPC flags the current plan as infeasible.
 
+---
 
 ### Short-Horizon Guidance MPC (Convex QP, LTV)
 
@@ -142,12 +149,15 @@ Tracks a short window of the planned reference while enforcing:
 - **input rate bounds**
 
 The MPC solves a convex quadratic program over a finite horizon to track the planner reference while minimizing control effort:
+
 $$
-J = \sum_{k=0}^{N}\left[(x_k - x_k^{\text{ref}})^T Q (x_k - x_k^{\text{ref}}) + u_k^T R u_k\right],
+J = \sum_{k=0}^{N}\left[(x_k - x_k^{\mathrm{ref}})^T Q (x_k - x_k^{\mathrm{ref}}) + u_k^T R u_k\right]
 $$
-where $x_k$ and $u_k$ are the predicted state and input at step $k$, and $x_k^{\text{ref}}$ is the reference provided by the path planner.
+
+where $x_k$ and $u_k$ are the predicted state and input at step $k$, and $x_k^{\mathrm{ref}}$ is the reference provided by the path planner.
 
 **Reference construction:** the planner provides position/altitude waypoints directly, and the MPC primarily penalizes tracking error in $(x, y, h, V)$. Desired angles $(\chi, \gamma)$ are derived from the local path direction (finite-difference gradients) between successive waypoints.
+
 
 
 ---
