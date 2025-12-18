@@ -56,7 +56,7 @@ def animate_results(
 
     # --- 1) Project onto runway axis for altitude subplot ---
     heading_rad, dx, dy = _runway_axis(runway_heading_deg)
-
+    
     s_raw = x * dx + y * dy
     s_abs = np.abs(s_raw)
 
@@ -597,3 +597,4 @@ def animate_results(
     fig.canvas.flush_events()
 
     return fig, (animate_results._ax_g, animate_results._ax_h, animate_results._ax_u)
+

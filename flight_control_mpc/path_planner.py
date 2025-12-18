@@ -360,11 +360,6 @@ class GlidePathPlanner:
         return np.vstack([xs, ys, hs]).T
 
 
-
-
-
-
-
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
     from plot import (
