@@ -30,13 +30,12 @@ Unlike “replan every step” architectures, the planner **only replans when th
 
 ### 3D Kinematic Point-Mass Model (Guidance Level)
 
-
 State:
+
 $$
 x = [x,\ y,\ h,\ V,\ \chi,\ \gamma]^T
 $$
 
-Where:
 | State     | Meaning                                | Units   |
 |-----------|----------------------------------------|---------|
 | $x$       | North position in world frame          | meters  |
@@ -47,11 +46,13 @@ Where:
 | $\gamma$  | Climb angle                            | radians |
 
 Kinematics:
+
 $$
 \dot{x} = V\cos\gamma\cos\chi,\qquad
 \dot{y} = V\cos\gamma\sin\chi,\qquad
 \dot{h} = V\sin\gamma
 $$
+
 $$
 \dot{V} = u_{accel},\qquad
 \dot{\chi} = u_{\dot{\chi}},\qquad
@@ -59,17 +60,16 @@ $$
 $$
 
 Inputs (tracked by ideal autopilot):
-$$
-- \(u_{accel}\): longitudinal acceleration command (m/s²)
-- \(u_{\dot{\chi}}\): heading-rate command (rad/s)
-- \(u_{\dot{\gamma}}\): climb-angle-rate command (rad/s)
-$$
+- $u_{accel}$: longitudinal acceleration command (m/s$^2$)
+- $u_{\dot{\chi}}$: heading-rate command (rad/s)
+- $u_{\dot{\gamma}}$: climb-angle-rate command (rad/s)
 
 ### Linearization for MPC (LTV)
 
 At each control iteration, the nonlinear kinematics are linearized about the current operating point and discretized (e.g., forward Euler) to form an LTV prediction model:
+
 $$
-x_{k+1} = A_d x_k + B_d u_k
+\x_{k+1} = A_d x_k + B_d u_k,\qquad
 $$
 
 ---
@@ -78,7 +78,7 @@ $$
 
 ### Long-Horizon Geometric Planner (Convex QP)
 
-Produces a waypoint sequence $$((x_i, y_i, h_i))$$ from current aircraft position to runway threshold.
+Produces a waypoint sequence $(x_i, y_i, h_i)$ from current aircraft position to runway threshold.
 
 Typical objective terms:
 - Smoothness (second differences)
