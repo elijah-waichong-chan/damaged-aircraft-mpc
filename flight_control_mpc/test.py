@@ -279,4 +279,4 @@ for replay_step in range(len(x_planned)):
 
     plt.pause(0.1)
 plt.ioff()
-plt.show(block=False)
+plt.show(block=True)
