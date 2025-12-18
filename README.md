@@ -21,7 +21,7 @@ The core idea is a **two-layer guidance stack**:
 Unlike “replan every step” architectures, the planner **only replans when the MPC declares the current plan infeasible**.
 
 <p align="center">
-  <img src="media/guidance_stack.png" alt="Two-layer guidance architecture" width="800">
+  <img src="media/approach_guidance.gif" alt="Two-layer guidance architecture" width="800">
 </p>
 
 ---
@@ -74,7 +74,7 @@ $$
 $$
 
 Inputs (tracked by ideal autopilot):
-- $u_{accel}$: longitudinal acceleration command (m/s$^2$)
+- $u_{accel}$: longitudinal acceleration command ($\mathrm{m/s^2}$)
 - $u_{\dot{\chi}}$: heading-rate command (rad/s)
 - $u_{\dot{\gamma}}$: climb-angle-rate command (rad/s)
 
@@ -89,6 +89,10 @@ $$
 ---
 
 ## Guidance Architecture
+
+<p align="center">
+  <img src="media/guidance_stack.png" alt="Two-layer guidance architecture" width="800">
+</p>
 
 ### Long-Horizon Geometric Planner (Convex QP)
 
