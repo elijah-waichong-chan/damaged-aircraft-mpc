@@ -98,8 +98,8 @@ $$
 
 Produces a waypoint sequence $(x_i, y_i, h_i)$ from current aircraft position to runway threshold.
 
-Typical objective terms:
-- Smoothness (second differences)
+Objective terms:
+- Smoothness
 - Glide-slope shaping
 - Runway centerline (cross-track) shaping
 - Terminal runway heading alignment
@@ -145,8 +145,13 @@ If (after damage) runway landing is declared infeasible, the system switches to 
    Tracks the crash polyline using the same convex QP structure, with an added terminal/near-ground penalty encouraging reduced vertical impact severity.
 
 <p align="center">
-  <img src="media/damage_reroute.gif" alt="Damaged-aircraft guidance demo" width="800">
+  <img src="media/damage_reroute.gif" alt="Damaged-aircraft guidance demo" width="800"><br/>
+  <em>
+    Damaged-mode response: after damage, the controller enforces a constrained flight-path angle
+    (climb angle) of −30° ≤ γ ≤ −10° and replans to a feasible touchdown.
+  </em>
 </p>
+
 
 ---
 
