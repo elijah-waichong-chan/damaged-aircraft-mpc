@@ -4,6 +4,9 @@ This project explores how **Model Predictive Control (MPC)** can provide **high-
 
 Developed as the final project for **UC Berkeley MECENG 231A – Model Predictive Control**.
 
+📄 **Project Report (PDF):** describes the two-layer guidance stack (long-horizon geometric planner + short-horizon MPC) and simulation results.  
+[Read the report](docs/mpc_231a_final_report.pdf)
+
 ---
 
 ## Overview
@@ -21,7 +24,7 @@ The core idea is a **two-layer guidance stack**:
 Unlike “replan every step” architectures, the planner **only replans when the MPC declares the current plan infeasible**.
 
 <p align="center">
-  <img src="media/approach_guidance.gif" alt="Two-layer guidance architecture" width="800">
+  <img src="docs/media/approach_guidance.gif" alt="Two-layer guidance architecture" width="800">
 </p>
 
 ---
@@ -91,7 +94,7 @@ $$
 ## Guidance Architecture
 
 <p align="center">
-  <img src="media/guidance_stack.png" alt="Two-layer guidance architecture" width="800">
+  <img src="docs/media/guidance_stack.png" alt="Two-layer guidance architecture" width="800">
 </p>
 
 ### Long-Horizon Geometric Planner (Convex QP)
@@ -188,7 +191,7 @@ If (after damage) runway landing is declared infeasible, the system switches to 
    Tracks the crash polyline using the same convex QP structure, with an added terminal/near-ground penalty encouraging reduced vertical impact severity.
 
 <p align="center">
-  <img src="media/damage_reroute.gif" alt="Damaged-aircraft guidance demo" width="800"><br/>
+  <img src="docs/media/damage_reroute.gif" alt="Damaged-aircraft guidance demo" width="800"><br/>
   <em>
     Damaged-mode response: after damage, the controller enforces a constrained flight-path angle
     (climb angle) of −30° ≤ γ ≤ −10° and replans to a feasible touchdown.
